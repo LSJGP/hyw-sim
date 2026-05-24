@@ -1,3 +1,16 @@
+# Bazel
 bazel-*
+external/
+
+# IDE / clangd
 compile_commands.json
-output/*.json
+.vscode/
+.idea/
+.cursor/
+
+# 本地仿真输出
+output/
+
+# 日志
+*.log
+sim_*.log
