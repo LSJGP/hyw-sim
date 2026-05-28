@@ -3,7 +3,7 @@
 当前主链路已迁移到 C++（`sim/cpp/sim_runner`）并使用 Bazel 构建：
 
 1. 读取 Waymo 导出的 JSON 场景（`scenario_meta` / `dynamic_objects` / `lane_graph`）；
-2. 在 C++ world loop 中执行 planner、车辆模型、OBB/SAT 碰撞与豁免分类；
+2. 在 C++ world loop 中通过 gRPC 调用独立 `planner_server`、车辆模型、OBB/SAT 碰撞与豁免分类；
 3. 每帧将 `MetricFrameInput` JSON **入队**，由后台线程写入 `grading_main --stream` 的 stdin（仿真线程不等待 pipe / grading 速度；`Run` 结束后 `Finish` 会排空队列并关闭管道）。
 
 场景与运行时数据由 `sim/proto/sim/*.proto` 定义；磁盘上仍为三个 JSON 文件（`JsonStringToMessage` 加载，`lane_graph` 折线 `[[x,y,z],...]` 经 `proto_io` 转换）。

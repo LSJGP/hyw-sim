@@ -4,7 +4,8 @@ refresh_compile_commands(
     name = "refresh_compile_commands",
     targets = [
         "//cpp:sim_runner",
-        "//cpp:planner",
+        "//cpp:planner_client",
+        "//cpp:planner_process",
         "//cpp:world",
     ],
 )

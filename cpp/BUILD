@@ -3,8 +3,6 @@ load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile
 
 refresh_compile_commands(
     name = "refresh_compile_commands",
-    # 可选：如果你想限定只为特定的 target 生成，可以取消下面这行的注释并填入 targets
-    # targets = ["//my_package:my_target"],
 )
 
 cc_library(
@@ -76,12 +74,26 @@ cc_library(
 
 cc_library(
     name = "planner",
-    srcs = ["planner.cc"],
     hdrs = ["planner.h"],
     deps = [
-        ":geometry",
-        ":trajectory_tracker",
         "@hyw_proto//proto/sim:runtime_cc_proto",
+    ],
+)
+
+cc_library(
+    name = "planner_process",
+    srcs = ["planner_process.cc"],
+    hdrs = ["planner_process.h"],
+)
+
+cc_library(
+    name = "planner_client",
+    srcs = ["planner_client.cc"],
+    hdrs = ["planner_client.h"],
+    deps = [
+        ":planner",
+        "@com_github_grpc_grpc//:grpc++",
+        "@hyw_proto//proto/planner:planner_cc_grpc",
     ],
 )
 
@@ -141,7 +153,8 @@ cc_binary(
     deps = [
         ":grading_bridge",
         ":lane_graph",
-        ":planner",
+        ":planner_client",
+        ":planner_process",
         ":scenario_loader",
         ":sim_logger",
         ":world",

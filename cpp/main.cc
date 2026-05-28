@@ -1,15 +1,18 @@
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <iostream>
 #include <cmath>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "cpp/grading_bridge.h"
 #include "cpp/lane_graph.h"
-#include "cpp/planner.h"
+#include "cpp/planner_client.h"
+#include "cpp/planner_process.h"
 #include "cpp/scenario_loader.h"
 #include "cpp/sim_logger.h"
 #include "cpp/world.h"
@@ -46,6 +49,10 @@ struct Args {
   std::string log_dir;
   std::string log_level = "info";
   std::string metrics_config;
+  std::string planner_address = "localhost:50051";
+  std::string planner_bin;
+  int planner_timeout_ms = 200;
+  int planner_port = 50051;
 };
 
 void PrintUsage(const char* argv0) {
@@ -55,6 +62,10 @@ void PrintUsage(const char* argv0) {
       << "  --dt <seconds>\n"
       << "  --max-seconds <seconds>\n"
       << "  --planner <name>  (default: local_dwa)\n"
+      << "  --planner-address <host:port>  (default: localhost:50051)\n"
+      << "  --planner-bin <path-to-planner_server>  (auto-spawn)\n"
+      << "  --planner-port <port>  (default: 50051, with --planner-bin)\n"
+      << "  --planner-timeout-ms <ms>  (default: 200)\n"
       << "  --reference-source <map|sdc>  (default: map)\n"
       << "  --reference-step <meters>  (default: 1.0, map mode)\n"
       << "  --desired-speed <mps>\n"
@@ -116,6 +127,14 @@ bool ParseArgs(int argc, char** argv, Args* args) {
       args->log_level = next("--log-level");
     } else if (k == "--metrics-config") {
       args->metrics_config = next("--metrics-config");
+    } else if (k == "--planner-address") {
+      args->planner_address = next("--planner-address");
+    } else if (k == "--planner-bin") {
+      args->planner_bin = next("--planner-bin");
+    } else if (k == "--planner-port") {
+      args->planner_port = std::stoi(next("--planner-port"));
+    } else if (k == "--planner-timeout-ms") {
+      args->planner_timeout_ms = std::stoi(next("--planner-timeout-ms"));
     } else if (k == "-h" || k == "--help") {
       PrintUsage(argv[0]);
       return false;
@@ -215,13 +234,28 @@ int main(int argc, char** argv) {
     }
   }
 
-  auto planner = hyw_sim::CreatePlanner(args.planner, planner_inputs, &err);
+  hyw_sim::PlannerProcess planner_proc;
+  std::string planner_address = args.planner_address;
+  if (!args.planner_bin.empty()) {
+    if (!planner_proc.Start(args.planner_bin, args.planner_port, &err)) {
+      std::cerr << "[sim_cpp] failed to start planner_server: " << err << "\n";
+      return 2;
+    }
+    planner_address = planner_proc.Address();
+    std::cout << "[sim_cpp] spawned planner_server at " << planner_address << "\n";
+    for (int i = 0; i < 30; ++i) {
+      if (hyw_sim::GrpcPlannerClient::HealthCheck(planner_address, &err)) {
+        err.clear();
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
+
+  auto planner = hyw_sim::GrpcPlannerClient::Connect(
+      planner_address, args.planner, planner_inputs, args.planner_timeout_ms, &err);
   if (!planner) {
-    std::cerr << "[sim_cpp] failed to create planner: " << err << "\n";
-    const auto names = hyw_sim::AvailablePlannerNames();
-    std::cerr << "[sim_cpp] available planners:";
-    for (const auto& name : names) std::cerr << " " << name;
-    std::cerr << "\n";
+    std::cerr << "[sim_cpp] failed to connect planner: " << err << "\n";
     return 2;
   }
   std::cout << "[sim_cpp] planner=" << planner->Name() << "\n";

@@ -31,6 +31,14 @@ def _parse_args(argv) -> argparse.Namespace:
     )
     p.add_argument("--scenario-dir", required=True)
     p.add_argument("--planner", default="local_dwa")
+    p.add_argument("--planner-address", default="localhost:50051")
+    p.add_argument(
+        "--planner-bin",
+        default="",
+        help="Path to planner_server; if set, sim spawns it before connecting.",
+    )
+    p.add_argument("--planner-port", type=int, default=50051)
+    p.add_argument("--planner-timeout-ms", type=int, default=200)
     p.add_argument(
         "--reference-source",
         choices=("map", "sdc"),
@@ -123,7 +131,19 @@ def main(argv=None) -> int:
         args.reference_source,
         "--reference-step",
         str(args.reference_step),
+        "--planner-address",
+        args.planner_address,
+        "--planner-timeout-ms",
+        str(args.planner_timeout_ms),
     ]
+    planner_bin = (args.planner_bin or "").strip()
+    if not planner_bin:
+        default_bin = HYW_ROOT / "hyw-planner" / "bazel-bin" / "cpp" / "planner_server"
+        if default_bin.is_file():
+            planner_bin = str(default_bin)
+    if planner_bin:
+        cmd.extend(["--planner-bin", str(Path(planner_bin).expanduser().resolve())])
+        cmd.extend(["--planner-port", str(args.planner_port)])
     if args.stop_on_collision:
         cmd.append("--stop-on-collision")
     if args.grading_bin:
