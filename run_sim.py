@@ -26,10 +26,22 @@ def _parse_args(argv) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Run C++ sim_runner with mostly-compatible run_sim.py flags.\n"
-            "Planner is now C++ only. Python planner path is removed."
+            "C++ sim_runner; planner via gRPC (hyw-planner planner_server)."
         )
     )
     p.add_argument("--scenario-dir", required=True)
+    p.add_argument(
+        "--scenario-load",
+        choices=("bulk", "stream"),
+        default="bulk",
+        help="加载 dynamic_objects：bulk 读整包，stream 读 header+frames。",
+    )
+    p.add_argument(
+        "--input-format",
+        choices=("auto", "json", "proto"),
+        default="auto",
+        help="scenario_meta/lane_graph/dynamic_objects：auto 选择 pb 优先，否则按显式格式读。",
+    )
     p.add_argument("--planner", default="local_dwa")
     p.add_argument("--planner-address", default="localhost:50051")
     p.add_argument(
@@ -103,6 +115,10 @@ def main(argv=None) -> int:
         "--",
         "--scenario-dir",
         str(scenario_dir),
+        "--scenario-load",
+        args.scenario_load,
+        "--input-format",
+        args.input_format,
         "--output",
         str(output),
         "--source-tag",

@@ -1,7 +1,10 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
+#include "cpp/dynamic_source.h"
+#include "cpp/input_format.h"
 #include "proto/sim/map.pb.h"
 #include "proto/sim/scenario.pb.h"
 
@@ -13,7 +16,14 @@ struct ScenarioBundle {
   proto::StaticMap map;
 };
 
-bool LoadScenarioFromDir(const std::string& scenario_dir, ScenarioBundle* out,
+bool LoadScenarioMetaAndMap(const std::string& scenario_dir,
+                            ScenarioInputFormat input_format,
+                            proto::ScenarioMeta* meta, proto::StaticMap* map,
+                            std::string* error);
+
+bool LoadScenarioFromDir(const std::string& scenario_dir, ScenarioLoadMode mode,
+                         ScenarioInputFormat input_format, ScenarioBundle* bundle,
+                         std::unique_ptr<DynamicNpcSource>* dynamic_source,
                          std::string* error);
 
 }  // namespace hyw_sim

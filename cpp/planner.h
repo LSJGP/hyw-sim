@@ -7,11 +7,13 @@
 
 namespace hyw_sim {
 
+/// Abstract planner used by WorldSimulator (implemented via gRPC client).
 class Planner {
  public:
   virtual ~Planner() = default;
   virtual std::string Name() const = 0;
-  virtual proto::PlannerTrajectory Plan(const proto::PlannerObservation& obs) const = 0;
+  virtual proto::PlannerTrajectory Plan(
+      const proto::PlannerObservation& obs) const = 0;
 };
 
 }  // namespace hyw_sim

@@ -13,12 +13,33 @@ cc_library(
 )
 
 cc_library(
+    name = "input_format",
+    srcs = ["input_format.cc"],
+    hdrs = ["input_format.h"],
+)
+
+cc_library(
     name = "proto_io",
     srcs = ["proto_io.cc"],
     hdrs = ["proto_io.h"],
     deps = [
+        ":input_format",
         ":json_utils",
         "@hyw_proto//proto/sim:map_cc_proto",
+        "@hyw_proto//proto/sim:scenario_cc_proto",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+cc_library(
+    name = "dynamic_source",
+    srcs = ["dynamic_source.cc"],
+    hdrs = ["dynamic_source.h"],
+    deps = [
+        ":input_format",
+        ":json_utils",
+        ":proto_io",
+        "@hyw_proto//proto/sim:runtime_cc_proto",
         "@hyw_proto//proto/sim:scenario_cc_proto",
         "@com_google_protobuf//:protobuf",
     ],
@@ -29,16 +50,12 @@ cc_library(
     srcs = ["scenario_loader.cc"],
     hdrs = ["scenario_loader.h"],
     deps = [
+        ":dynamic_source",
+        ":input_format",
         ":proto_io",
         "@hyw_proto//proto/sim:map_cc_proto",
         "@hyw_proto//proto/sim:scenario_cc_proto",
     ],
-)
-
-cc_library(
-    name = "geometry",
-    srcs = ["geometry.cc"],
-    hdrs = ["geometry.h"],
 )
 
 cc_library(
@@ -75,9 +92,7 @@ cc_library(
 cc_library(
     name = "planner",
     hdrs = ["planner.h"],
-    deps = [
-        "@hyw_proto//proto/sim:runtime_cc_proto",
-    ],
+    deps = ["@hyw_proto//proto/sim:runtime_cc_proto"],
 )
 
 cc_library(
@@ -102,9 +117,10 @@ cc_library(
     srcs = ["world.cc"],
     hdrs = ["world.h"],
     deps = [
+        ":dynamic_source",
         ":lane_graph",
-        ":map_query",
         ":planner",
+        ":map_query",
         ":trajectory_tracker",
         "@hyw_proto//proto/sim:runtime_cc_proto",
         "@hyw_proto//proto/sim:scenario_cc_proto",
@@ -152,6 +168,7 @@ cc_binary(
     srcs = ["main.cc"],
     deps = [
         ":grading_bridge",
+        ":input_format",
         ":lane_graph",
         ":planner_client",
         ":planner_process",
