@@ -16,6 +16,7 @@
 #include "cpp/lane_graph.h"
 #include "cpp/planner_client.h"
 #include "cpp/planner_process.h"
+#include "cpp/proto_io.h"
 #include "cpp/scenario_loader.h"
 #include "cpp/sim_logger.h"
 #include "cpp/world.h"
