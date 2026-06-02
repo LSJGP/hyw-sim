@@ -24,17 +24,9 @@ http_archive(
     urls = ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.9/rules_cc-0.0.9.tar.gz"],
 )
 
-<<<<<<< HEAD
 local_repository(
     name = "hyw_proto",
     path = "../hyw-proto",
-=======
-http_archive(
-    name = "com_google_protobuf",
-    integrity = "sha256-0ZZD0mW5eDgzUrMUPwTAZB7qdadSNcERzAGhNQFzGA4=",
-    strip_prefix = "protobuf-25.3",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/refs/tags/v25.3.tar.gz"],
->>>>>>> origin/main
 )
 
 http_archive(
