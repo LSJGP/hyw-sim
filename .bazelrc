@@ -1,7 +1,10 @@
-# Persist Bazel caches inside the workspace; macOS /var/tmp is cleared on reboot
-# and forces re-downloading http_archive deps on every fresh session.
+# Persist Bazel caches inside the workspace; macOS /var/tmp and the default
+# ~/Library/Caches/bazel output root are cleared or recreated easily, which
+# forces http_archive deps to be re-downloaded on every fresh session.
 startup --output_user_root=.bazel
 common --repository_cache=.bazel/repository_cache
+build --disk_cache=.bazel/disk_cache
+
 build --enable_bzlmod=false
 build --cxxopt=-std=c++17
 build --spawn_strategy=local

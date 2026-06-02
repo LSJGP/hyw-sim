@@ -41,5 +41,6 @@ python3 run_sim.py \
   --output /tmp/sim_log.json \
   --grading-bin ../hyw-grading/bazel-bin/src/entry/grading_main \
   --grading-report /tmp/grading_report.json
+  # 未指定 --metrics-config 时自动使用 ../hyw-grading/config/metrics_default.json
   # 默认 --cpp-mode online；其他: offline / both / off
 ```

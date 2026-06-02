@@ -13,6 +13,7 @@ from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
 HYW_ROOT = Path(os.environ.get("HYW_ROOT", str(THIS_DIR.parent))).resolve()
+HYW_GRADING = HYW_ROOT / "hyw-grading"
 WORKBENCH_ROOT = Path(
     os.environ.get("HYW_WORKBENCH", str(HYW_ROOT / "hyw-workbench"))
 ).resolve()
@@ -20,6 +21,8 @@ DEFAULT_LOG_DIR = WORKBENCH_ROOT / "output" / "log"
 DEFAULT_REPORT_DIR = WORKBENCH_ROOT / "output" / "report"
 DEFAULT_SIMLOG_PATH = DEFAULT_LOG_DIR / "sim_log.json"
 DEFAULT_GRADING_REPORT_PATH = DEFAULT_REPORT_DIR / "grading_report.json"
+DEFAULT_GRADING_BIN = HYW_GRADING / "bazel-bin" / "src" / "entry" / "grading_main"
+DEFAULT_METRICS_CONFIG = HYW_GRADING / "config" / "metrics_default.json"
 
 
 def _parse_args(argv) -> argparse.Namespace:
@@ -50,7 +53,7 @@ def _parse_args(argv) -> argparse.Namespace:
     p.add_argument("--ego-max-speed", type=float, default=33.3)
     p.add_argument("--grading-bin", default="")
     p.add_argument("--grading-report", default="")
-    p.add_argument("--metrics-config", default="")
+    p.add_argument("--metrics-config", default="", help="Grading metrics JSON; defaults to hyw-grading/config/metrics_default.json when --grading-bin is set")
     p.add_argument(
         "--log-dir",
         default="",
@@ -130,7 +133,17 @@ def main(argv=None) -> int:
         report.parent.mkdir(parents=True, exist_ok=True)
         cmd.extend(["--grading-bin", str(Path(args.grading_bin).expanduser().resolve())])
         cmd.extend(["--grading-report", str(report)])
-    if args.metrics_config:
+        metrics_config = (args.metrics_config or "").strip()
+        if not metrics_config and DEFAULT_METRICS_CONFIG.is_file():
+            metrics_config = str(DEFAULT_METRICS_CONFIG)
+        if metrics_config:
+            cmd.extend(
+                [
+                    "--metrics-config",
+                    str(Path(metrics_config).expanduser().resolve()),
+                ]
+            )
+    elif args.metrics_config:
         cmd.extend(
             [
                 "--metrics-config",
