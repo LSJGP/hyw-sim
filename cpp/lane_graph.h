@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
+#include "google/protobuf/repeated_ptr_field.h"
 #include "proto/sim/map.pb.h"
 #include "proto/sim/runtime.pb.h"
 #include "proto/sim/scenario.pb.h"
@@ -35,8 +37,16 @@ class LaneGraph {
 
   const proto::StaticMap& map() const { return map_; }
 
+  // Returns polyline for a map feature id (road_line or road_edge), or nullptr.
+  const google::protobuf::RepeatedPtrField<proto::Vec3>* FindFeaturePolyline(
+      int64_t feature_id) const;
+
  private:
+  void BuildFeaturePolylineIndex();
+
   proto::StaticMap map_;
+  std::unordered_map<int64_t, const google::protobuf::RepeatedPtrField<proto::Vec3>*>
+      feature_polylines_;
 };
 
 bool BuildMapReference(const proto::ScenarioMeta& meta, const LaneGraph& graph,

@@ -117,7 +117,26 @@ bool LaneGraph::LoadFromFile(const std::string& path, LaneGraph* out,
   return true;
 }
 
-LaneGraph::LaneGraph(proto::StaticMap map) : map_(std::move(map)) {}
+LaneGraph::LaneGraph(proto::StaticMap map) : map_(std::move(map)) {
+  BuildFeaturePolylineIndex();
+}
+
+void LaneGraph::BuildFeaturePolylineIndex() {
+  feature_polylines_.clear();
+  for (const auto& line : map_.road_lines()) {
+    feature_polylines_[line.id()] = &line.polyline();
+  }
+  for (const auto& edge : map_.road_edges()) {
+    feature_polylines_[edge.id()] = &edge.polyline();
+  }
+}
+
+const google::protobuf::RepeatedPtrField<proto::Vec3>*
+LaneGraph::FindFeaturePolyline(int64_t feature_id) const {
+  const auto it = feature_polylines_.find(feature_id);
+  if (it == feature_polylines_.end()) return nullptr;
+  return it->second;
+}
 
 const proto::Lane* LaneGraph::FindLane(int64_t id) const {
   for (const auto& lane : map_.lanes()) {

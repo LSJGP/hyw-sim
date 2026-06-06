@@ -24,8 +24,9 @@ double PointToSegmentDist(double px, double py, double x1, double y1, double x2,
   return std::hypot(px - qx, py - qy);
 }
 
-double MinPolylineDist(const google::protobuf::RepeatedPtrField<hyw_sim::proto::Vec3>& poly,
-                       double px, double py) {
+double MinPolylineDist(
+    const google::protobuf::RepeatedPtrField<hyw_sim::proto::Vec3>& poly,
+    double px, double py) {
   double best = std::numeric_limits<double>::infinity();
   if (poly.size() < 2) return best;
   for (int i = 0; i + 1 < poly.size(); ++i) {
@@ -36,7 +37,8 @@ double MinPolylineDist(const google::protobuf::RepeatedPtrField<hyw_sim::proto::
 }
 
 bool ProjectOnClosestSegment(const hyw_sim::proto::Lane& lane, double px, double py,
-                             double* lateral_offset, double* along_dist) {
+                             double* lateral_offset, double* along_dist, int* seg_i,
+                             double* foot_x, double* foot_y) {
   double best_d = std::numeric_limits<double>::infinity();
   bool found = false;
   for (int i = 0; i + 1 < lane.centerline_size(); ++i) {
@@ -59,10 +61,35 @@ bool ProjectOnClosestSegment(const hyw_sim::proto::Lane& lane, double px, double
       const double cross = dx * (py - y1) - dy * (px - x1);
       *lateral_offset = cross / seg_len;
       *along_dist = t * seg_len;
+      if (seg_i != nullptr) {
+        *seg_i = i;
+      }
+      if (foot_x != nullptr) {
+        *foot_x = qx;
+      }
+      if (foot_y != nullptr) {
+        *foot_y = qy;
+      }
       found = true;
     }
   }
   return found;
+}
+
+const google::protobuf::RepeatedPtrField<hyw_sim::proto::Vec3>*
+ResolveBoundaryPolyline(const LaneGraph& graph, const proto::Lane& lane, bool is_left,
+                        int seg_i) {
+  const auto& bounds = is_left ? lane.left_boundaries() : lane.right_boundaries();
+  for (const auto& seg : bounds) {
+    if (seg_i < seg.lane_start_index() || seg_i > seg.lane_end_index()) {
+      continue;
+    }
+    const auto* poly = graph.FindFeaturePolyline(seg.boundary_feature_id());
+    if (poly != nullptr && poly->size() >= 2) {
+      return poly;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -79,10 +106,35 @@ proto::RoadContext BuildRoadContext(const LaneGraph& graph,
   if (lane != nullptr) {
     out.set_closest_lane_id(lane->id());
     double along = 0.0;
-    if (ProjectOnClosestSegment(*lane, x, y, &lateral, &along)) {
+    int seg_i = -1;
+    double foot_x = 0.0;
+    double foot_y = 0.0;
+    if (ProjectOnClosestSegment(*lane, x, y, &lateral, &along, &seg_i, &foot_x,
+                                  &foot_y)) {
       out.set_lateral_offset_m(lateral);
-      out.set_dist_to_left_boundary_m(kDefaultHalfLaneWidth - lateral);
-      out.set_dist_to_right_boundary_m(kDefaultHalfLaneWidth + lateral);
+
+      const auto* left_poly =
+          ResolveBoundaryPolyline(graph, *lane, true, seg_i);
+      const auto* right_poly =
+          ResolveBoundaryPolyline(graph, *lane, false, seg_i);
+
+      double w_left = kDefaultHalfLaneWidth;
+      double w_right = kDefaultHalfLaneWidth;
+      if (left_poly != nullptr) {
+        const double d = MinPolylineDist(*left_poly, foot_x, foot_y);
+        if (std::isfinite(d)) {
+          w_left = d;
+        }
+      }
+      if (right_poly != nullptr) {
+        const double d = MinPolylineDist(*right_poly, foot_x, foot_y);
+        if (std::isfinite(d)) {
+          w_right = d;
+        }
+      }
+
+      out.set_dist_to_left_boundary_m(w_left - lateral);
+      out.set_dist_to_right_boundary_m(w_right + lateral);
     }
   }
 
