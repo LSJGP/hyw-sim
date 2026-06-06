@@ -8,6 +8,7 @@ import os
 import shlex
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
@@ -20,7 +21,13 @@ WORKBENCH_ROOT = Path(
 DEFAULT_LOG_DIR = WORKBENCH_ROOT / "output" / "log"
 DEFAULT_REPORT_DIR = WORKBENCH_ROOT / "output" / "report"
 DEFAULT_SIMLOG_PATH = DEFAULT_LOG_DIR / "sim_log.json"
-DEFAULT_GRADING_REPORT_PATH = DEFAULT_REPORT_DIR / "grading_report.json"
+def _default_report_dir(scenario_dir: Path, output_path: Path) -> Path:
+    scenario_name = scenario_dir.name
+    stem = output_path.stem
+    if stem.endswith("_sim_log"):
+        scenario_name = stem[: -len("_sim_log")]
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return DEFAULT_REPORT_DIR / f"{ts}_{scenario_name}"
 DEFAULT_GRADING_BIN = HYW_GRADING / "bazel-bin" / "src" / "entry" / "grading_main"
 DEFAULT_METRICS_CONFIG = HYW_GRADING / "config" / "metrics_default.json"
 
@@ -103,7 +110,7 @@ def main(argv=None) -> int:
     report = (
         Path(args.grading_report).expanduser().resolve()
         if args.grading_report
-        else DEFAULT_GRADING_REPORT_PATH
+        else _default_report_dir(scenario_dir, output)
     )
 
     if args.no_interpolate_npcs:

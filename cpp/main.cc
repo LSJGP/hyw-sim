@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <ctime>
 #include <filesystem>
 #include <functional>
 #include <iomanip>
@@ -36,6 +37,32 @@ double MsSince(const Clock::time_point& t0, const Clock::time_point& t1) {
   return std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
 
+std::string TimestampNow() {
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t t = std::chrono::system_clock::to_time_t(now);
+  std::tm tm_buf{};
+#if defined(_WIN32)
+  localtime_s(&tm_buf, &t);
+#else
+  localtime_r(&t, &tm_buf);
+#endif
+  std::ostringstream oss;
+  oss << std::put_time(&tm_buf, "%Y%m%d_%H%M%S");
+  return oss.str();
+}
+
+std::string ScenarioNameFromOutput(const std::string& output_path,
+                                   const std::string& scenario_dir) {
+  const fs::path outp(output_path);
+  std::string stem = outp.stem().string();
+  const std::string suffix = "_sim_log";
+  if (stem.size() > suffix.size() &&
+      stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0) {
+    return stem.substr(0, stem.size() - suffix.size());
+  }
+  return fs::path(scenario_dir).filename().string();
+}
+
 struct Args {
   std::string scenario_dir;
   std::string output = "../output/log/sim_log.json";
@@ -65,6 +92,20 @@ struct Args {
   std::string input_format = "auto";
   bool benchmark = false;
 };
+
+std::string DefaultReportDirectory(const Args& args) {
+  const fs::path outp(args.output);
+  const fs::path log_dir = outp.parent_path();
+  fs::path report_base;
+  if (log_dir.filename() == "log") {
+    report_base = log_dir.parent_path() / "report";
+  } else {
+    report_base = outp.parent_path();
+  }
+  const std::string scenario =
+      ScenarioNameFromOutput(args.output, args.scenario_dir);
+  return (report_base / (TimestampNow() + "_" + scenario)).string();
+}
 
 void PrintUsage(const char* argv0) {
   std::cerr
@@ -391,18 +432,11 @@ int main(int argc, char** argv) {
 
   std::string report_path = args.grading_report;
   if (!args.benchmark && report_path.empty()) {
-    const fs::path outp(args.output);
-    const fs::path log_dir = outp.parent_path();
-    if (log_dir.filename() == "log") {
-      report_path =
-          (log_dir.parent_path() / "report" / "grading_report.json").string();
-    } else {
-      report_path = (outp.parent_path() / "grading_report.json").string();
-    }
+    report_path = DefaultReportDirectory(args);
   }
   if (enable_online) {
     std::error_code mk_ec;
-    fs::create_directories(fs::path(report_path).parent_path(), mk_ec);
+    fs::create_directories(report_path, mk_ec);
     if (!stream_writer.Start(args.grading_bin, report_path, args.metrics_config,
                              &lane_graph.map(), params, &err)) {
       std::cerr << "[sim_cpp] failed to start grading stream: " << err << "\n";
