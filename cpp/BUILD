@@ -64,6 +64,7 @@ cc_library(
     hdrs = ["lane_graph.h"],
     deps = [
         ":proto_io",
+        "@hyw_proto//proto/grading:metric_input_cc_proto",
         "@hyw_proto//proto/sim:map_cc_proto",
         "@hyw_proto//proto/sim:runtime_cc_proto",
         "@hyw_proto//proto/sim:scenario_cc_proto",

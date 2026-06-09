@@ -422,6 +422,22 @@ int main(int argc, char** argv) {
   cfg.set_max_seconds(args.max_seconds);
   cfg.set_initial_ego_speed_mps(initial_ego_speed_mps);
 
+  hyw_sim::proto::Track sdc_track;
+  grading_mini::proto::SdcRouteContext sdc_route;
+  const grading_mini::proto::SdcRouteContext* sdc_route_ptr = nullptr;
+  if (dynamic_source->GetSdcTrack(&sdc_track) &&
+      hyw_sim::ExtractSdcRouteEndpoints(sdc_track, &sdc_route)) {
+    sdc_route_ptr = &sdc_route;
+    if (!args.benchmark) {
+      std::cout << "[sim_cpp] sdc_route: start=(" << sdc_route.start().x() << ","
+                << sdc_route.start().y() << ") end=(" << sdc_route.end().x() << ","
+                << sdc_route.end().y() << ")\n";
+    }
+  } else if (!args.benchmark) {
+    std::cerr << "[sim_cpp] warn: no SDC route endpoints (ego_progress_checker "
+                 "will skip)\n";
+  }
+
   hyw_sim::WorldSimulator world(bundle.meta, std::move(dynamic_source), lane_graph,
                                 params);
 
@@ -438,7 +454,7 @@ int main(int argc, char** argv) {
     std::error_code mk_ec;
     fs::create_directories(report_path, mk_ec);
     if (!stream_writer.Start(args.grading_bin, report_path, args.metrics_config,
-                             &lane_graph.map(), params, &err)) {
+                             &lane_graph.map(), params, sdc_route_ptr, &err)) {
       std::cerr << "[sim_cpp] failed to start grading stream: " << err << "\n";
       return 3;
     }
@@ -484,7 +500,7 @@ int main(int argc, char** argv) {
   stream_writer.Close();
 
   if (!hyw_sim::WriteSimLogJson(args.output, args.source_tag, records,
-                                lane_graph.map(), params, &err)) {
+                                lane_graph.map(), params, sdc_route_ptr, &err)) {
     std::cerr << "[sim_cpp] failed writing simlog: " << err << "\n";
     return 5;
   }

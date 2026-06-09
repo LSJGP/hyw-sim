@@ -28,12 +28,13 @@ std::string ShellSingleQuote(const std::string& p) {
 
 }  // namespace
 
-std::string FrameToGradingJsonLine(const proto::FrameRecord& frame,
-                                   const proto::StaticMap* scene_map,
-                                   const proto::VehicleParams& ego_params) {
+std::string FrameToGradingJsonLine(
+    const proto::FrameRecord& frame, const proto::StaticMap* scene_map,
+    const proto::VehicleParams& ego_params,
+    const grading_mini::proto::SdcRouteContext* sdc_route) {
   const proto::StaticMap* map_ptr =
       (frame.frame_id() == 0) ? scene_map : nullptr;
-  const auto input = ToMetricFrameInput(frame, map_ptr, ego_params);
+  const auto input = ToMetricFrameInput(frame, map_ptr, ego_params, sdc_route);
   std::string json;
   google::protobuf::util::JsonPrintOptions opts;
   opts.preserve_proto_field_names = true;
@@ -66,7 +67,8 @@ void StreamPipeWriter::WriterLoop() {
       write_failed_ = true;
       break;
     }
-    const std::string line = FrameToGradingJsonLine(frame, scene_map_, ego_params_);
+    const std::string line =
+        FrameToGradingJsonLine(frame, scene_map_, ego_params_, sdc_route_);
     if (std::fputs((line + "\n").c_str(), pipe_) < 0) {
       write_failed_ = true;
       break;
@@ -75,13 +77,13 @@ void StreamPipeWriter::WriterLoop() {
   }
 }
 
-bool StreamPipeWriter::Start(const std::string& grading_bin,
-                             const std::string& report_path,
-                             const std::string& metrics_config_path,
-                             const proto::StaticMap* scene_map,
-                             const proto::VehicleParams& ego_params,
-                             std::string* error) {
+bool StreamPipeWriter::Start(
+    const std::string& grading_bin, const std::string& report_path,
+    const std::string& metrics_config_path, const proto::StaticMap* scene_map,
+    const proto::VehicleParams& ego_params,
+    const grading_mini::proto::SdcRouteContext* sdc_route, std::string* error) {
   scene_map_ = scene_map;
+  sdc_route_ = sdc_route;
   ego_params_ = ego_params;
   std::string cmd = grading_bin + " --stream";
   if (!metrics_config_path.empty()) {
@@ -145,16 +147,17 @@ void StreamPipeWriter::Close() {
   Finish(&dummy);
 }
 
-bool WriteSimLogJson(const std::string& output_path, const std::string& source_tag,
-                     const std::vector<proto::FrameRecord>& frames,
-                     const proto::StaticMap& scene_map,
-                     const proto::VehicleParams& ego_params, std::string* error) {
+bool WriteSimLogJson(
+    const std::string& output_path, const std::string& source_tag,
+    const std::vector<proto::FrameRecord>& frames, const proto::StaticMap& scene_map,
+    const proto::VehicleParams& ego_params,
+    const grading_mini::proto::SdcRouteContext* sdc_route, std::string* error) {
   fs::create_directories(fs::path(output_path).parent_path());
   grading_mini::proto::SimLog log;
   log.set_source(source_tag);
   for (const auto& frame : frames) {
     const proto::StaticMap* map_ptr = (frame.frame_id() == 0) ? &scene_map : nullptr;
-    *log.add_frames() = ToMetricFrameInput(frame, map_ptr, ego_params);
+    *log.add_frames() = ToMetricFrameInput(frame, map_ptr, ego_params, sdc_route);
   }
   std::string json;
   google::protobuf::util::JsonPrintOptions opts;

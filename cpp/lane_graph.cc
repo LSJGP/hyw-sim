@@ -360,4 +360,41 @@ std::vector<proto::ReferencePoint> BuildSdcReference(
   return BuildSdcReferenceFromTrack(*sdc_track);
 }
 
+namespace {
+
+void CopyTrackStateToRoutePose(const proto::TrackState& st,
+                               grading_mini::proto::RoutePose2D* out) {
+  out->set_x(st.x());
+  out->set_y(st.y());
+  out->set_yaw(st.yaw());
+}
+
+}  // namespace
+
+bool ExtractSdcRouteEndpoints(const proto::Track& sdc_track,
+                              grading_mini::proto::SdcRouteContext* out) {
+  if (!out || sdc_track.states_size() == 0) {
+    return false;
+  }
+
+  int first_valid = -1;
+  int last_valid = -1;
+  for (int i = 0; i < sdc_track.states_size(); ++i) {
+    if (!sdc_track.states(i).valid()) {
+      continue;
+    }
+    if (first_valid < 0) {
+      first_valid = i;
+    }
+    last_valid = i;
+  }
+  if (first_valid < 0 || last_valid < 0) {
+    return false;
+  }
+
+  CopyTrackStateToRoutePose(sdc_track.states(first_valid), out->mutable_start());
+  CopyTrackStateToRoutePose(sdc_track.states(last_valid), out->mutable_end());
+  return true;
+}
+
 }  // namespace hyw_sim

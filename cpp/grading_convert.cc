@@ -102,7 +102,8 @@ void CopyPlannedTrajectory(const proto::PlannerTrajectory& src,
 
 grading_mini::proto::MetricFrameInput ToMetricFrameInput(
     const proto::FrameRecord& frame, const proto::StaticMap* scene_map,
-    const proto::VehicleParams& ego_params) {
+    const proto::VehicleParams& ego_params,
+    const grading_mini::proto::SdcRouteContext* sdc_route) {
   grading_mini::proto::MetricFrameInput out;
   out.set_frame_id(frame.frame_id());
   out.set_timestamp_us(frame.timestamp_us());
@@ -125,6 +126,10 @@ grading_mini::proto::MetricFrameInput ToMetricFrameInput(
 
   if (scene_map != nullptr) {
     *out.mutable_scene_map() = ToSceneMap(*scene_map);
+  }
+
+  if (frame.frame_id() == 0 && sdc_route != nullptr) {
+    *out.mutable_sdc_route() = *sdc_route;
   }
 
   auto* ev = out.mutable_ego_vehicle();

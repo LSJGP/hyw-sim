@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "google/protobuf/repeated_ptr_field.h"
+#include "proto/grading/metric_input.pb.h"
 #include "proto/sim/map.pb.h"
 #include "proto/sim/runtime.pb.h"
 #include "proto/sim/scenario.pb.h"
@@ -58,5 +59,9 @@ std::vector<proto::ReferencePoint> BuildSdcReference(
 
 std::vector<proto::ReferencePoint> BuildSdcReferenceFromTrack(
     const proto::Track& sdc_track);
+
+bool ExtractSdcRouteEndpoints(
+    const proto::Track& sdc_track,
+    grading_mini::proto::SdcRouteContext* out);
 
 }  // namespace hyw_sim

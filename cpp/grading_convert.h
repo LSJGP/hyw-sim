@@ -8,6 +8,7 @@ namespace hyw_sim {
 
 grading_mini::proto::MetricFrameInput ToMetricFrameInput(
     const proto::FrameRecord& frame, const proto::StaticMap* scene_map,
-    const proto::VehicleParams& ego_params);
+    const proto::VehicleParams& ego_params,
+    const grading_mini::proto::SdcRouteContext* sdc_route = nullptr);
 
 }  // namespace hyw_sim
