@@ -85,6 +85,19 @@ void CopyNpc(const proto::NpcSnapshot& src, grading_mini::proto::NpcState* dst) 
   dst->set_height(src.height());
 }
 
+void CopyPlannedTrajectory(const proto::PlannerTrajectory& src,
+                           grading_mini::proto::PlannedTrajectory* dst) {
+  dst->clear_points();
+  for (const auto& p : src.points()) {
+    auto* out = dst->add_points();
+    out->set_t_s(p.t_s());
+    out->set_x(p.x());
+    out->set_y(p.y());
+    out->set_heading(p.heading());
+    out->set_speed(p.speed());
+  }
+}
+
 }  // namespace
 
 grading_mini::proto::MetricFrameInput ToMetricFrameInput(
@@ -121,6 +134,8 @@ grading_mini::proto::MetricFrameInput ToMetricFrameInput(
   ev->set_rear_overhang(ego_params.rear_overhang());
 
   CopyRoadContext(frame.road(), out.mutable_road_context());
+  CopyPlannedTrajectory(frame.planned_trajectory(),
+                        out.mutable_planned_trajectory());
 
   return out;
 }

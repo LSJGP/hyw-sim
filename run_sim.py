@@ -29,7 +29,37 @@ def _default_report_dir(scenario_dir: Path, output_path: Path) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return DEFAULT_REPORT_DIR / f"{ts}_{scenario_name}"
 DEFAULT_GRADING_BIN = HYW_GRADING / "bazel-bin" / "src" / "entry" / "grading_main"
+DEFAULT_SIM_RUNNER_BIN = THIS_DIR / "bazel-bin" / "cpp" / "sim_runner"
 DEFAULT_METRICS_CONFIG = HYW_GRADING / "config" / "metrics_default.json"
+
+
+def _build_sim_runner() -> None:
+    print("[sim] building //cpp:sim_runner …", file=sys.stderr)
+    rc = subprocess.call(
+        ["bazel", "build", "//cpp:sim_runner"],
+        cwd=THIS_DIR,
+    )
+    if rc != 0:
+        raise RuntimeError(
+            f"bazel build //cpp:sim_runner failed (rc={rc}); "
+            f"cd {THIS_DIR} && bazel build //cpp:sim_runner"
+        )
+
+
+def _resolve_sim_runner_bin(sim_bin: str, rebuild: bool) -> Path:
+    path = (
+        Path(sim_bin).expanduser().resolve()
+        if sim_bin.strip()
+        else DEFAULT_SIM_RUNNER_BIN
+    )
+    if rebuild or not path.is_file():
+        _build_sim_runner()
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"sim_runner not found: {path}\n"
+            f"Build: cd {THIS_DIR} && bazel build //cpp:sim_runner"
+        )
+    return path
 
 
 def _parse_args(argv) -> argparse.Namespace:
@@ -91,6 +121,16 @@ def _parse_args(argv) -> argparse.Namespace:
     )
     p.add_argument("--log-level", default="info")
     p.add_argument("--cpp-mode", choices=("online", "offline", "both", "off"), default="online")
+    p.add_argument(
+        "--sim-bin",
+        default="",
+        help="Path to sim_runner; defaults to bazel-bin/cpp/sim_runner under hyw-sim.",
+    )
+    p.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Run bazel build //cpp:sim_runner before starting (default: use existing binary).",
+    )
 
     p.add_argument("--no-interpolate-npcs", action="store_true")
     p.add_argument("--reference-step", type=float, default=1.0)
@@ -118,11 +158,10 @@ def main(argv=None) -> int:
     if args.no_python_grader:
         print("[sim] --no-python-grader is now always true (Python grader removed)", file=sys.stderr)
 
+    sim_runner = _resolve_sim_runner_bin(args.sim_bin, args.rebuild)
+
     cmd = [
-        "bazel",
-        "run",
-        "//cpp:sim_runner",
-        "--",
+        str(sim_runner),
         "--scenario-dir",
         str(scenario_dir),
         "--scenario-load",
@@ -202,7 +241,7 @@ def main(argv=None) -> int:
         cmd.extend(["--log-dir", str(Path(log_dir).expanduser().resolve())])
         cmd.extend(["--log-level", str(args.log_level)])
 
-    print("[sim] exec:", " ".join(shlex.quote(x) for x in cmd))
+    print("[sim] exec:", " ".join(shlex.quote(x) for x in cmd), file=sys.stderr)
     proc = subprocess.run(cmd, cwd=THIS_DIR, check=False)
     return proc.returncode
 
