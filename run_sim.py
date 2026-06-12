@@ -158,6 +158,30 @@ def main(argv=None) -> int:
     if args.no_python_grader:
         print("[sim] --no-python-grader is now always true (Python grader removed)", file=sys.stderr)
 
+    sim_input_format = args.input_format
+    if args.input_format == "auto" and args.reference_source == "map":
+        pysim_root = WORKBENCH_ROOT / "pysim"
+        gen_dir = WORKBENCH_ROOT / "tools" / "gen"
+        for p in (str(pysim_root), str(gen_dir)):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        try:
+            from waymo_sim.scenario import resolve_scenario_input_format
+
+            resolved = resolve_scenario_input_format(
+                scenario_dir,
+                args.input_format,
+                reference_source=args.reference_source,
+            )
+            if resolved != args.input_format:
+                print(
+                    f"[sim] input-format {args.input_format} -> {resolved} (map routing)",
+                    file=sys.stderr,
+                )
+                sim_input_format = resolved
+        except Exception as exc:
+            print(f"[sim] input-format auto resolve failed: {exc}", file=sys.stderr)
+
     sim_runner = _resolve_sim_runner_bin(args.sim_bin, args.rebuild)
 
     cmd = [
@@ -167,7 +191,7 @@ def main(argv=None) -> int:
         "--scenario-load",
         args.scenario_load,
         "--input-format",
-        args.input_format,
+        sim_input_format,
         "--output",
         str(output),
         "--source-tag",
@@ -202,7 +226,12 @@ def main(argv=None) -> int:
         str(args.planner_timeout_ms),
     ]
     planner_bin = (args.planner_bin or "").strip()
-    if not planner_bin:
+    argv_has_planner_address = any(
+        a == "--planner-address" or a.startswith("--planner-address=")
+        for a in sys.argv[1:]
+    )
+    # Dashboard/batch pass --planner-address to use workbench-managed planner_server.
+    if not planner_bin and not argv_has_planner_address:
         default_bin = HYW_ROOT / "hyw-planner" / "bazel-bin" / "cpp" / "planner_server"
         if default_bin.is_file():
             planner_bin = str(default_bin)
