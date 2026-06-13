@@ -17,7 +17,8 @@ namespace hyw_sim {
 std::string FrameToGradingJsonLine(
     const proto::FrameRecord& frame, const proto::StaticMap* scene_map,
     const proto::VehicleParams& ego_params,
-    const grading_mini::proto::SdcRouteContext* sdc_route = nullptr);
+    const grading_mini::proto::SdcRouteContext* sdc_route = nullptr,
+    const grading_mini::proto::ScenarioContext* scenario_context = nullptr);
 
 class StreamPipeWriter {
  public:
@@ -30,6 +31,7 @@ class StreamPipeWriter {
              const std::string& metrics_config_path,
              const proto::StaticMap* scene_map, const proto::VehicleParams& ego_params,
              const grading_mini::proto::SdcRouteContext* sdc_route,
+             const grading_mini::proto::ScenarioContext* scenario_context,
              std::string* error);
   void EnqueueFrame(const proto::FrameRecord& frame);
   bool Finish(std::string* error);
@@ -48,6 +50,7 @@ class StreamPipeWriter {
   bool finish_called_ = false;
   const proto::StaticMap* scene_map_ = nullptr;
   const grading_mini::proto::SdcRouteContext* sdc_route_ = nullptr;
+  const grading_mini::proto::ScenarioContext* scenario_context_ = nullptr;
   proto::VehicleParams ego_params_;
 };
 
@@ -55,7 +58,9 @@ bool WriteSimLogJson(
     const std::string& output_path, const std::string& source_tag,
     const std::vector<proto::FrameRecord>& frames, const proto::StaticMap& scene_map,
     const proto::VehicleParams& ego_params,
-    const grading_mini::proto::SdcRouteContext* sdc_route, std::string* error);
+    const grading_mini::proto::SdcRouteContext* sdc_route,
+    const grading_mini::proto::ScenarioContext* scenario_context,
+    std::string* error);
 bool RunBatchGrading(const std::string& grading_bin, const std::string& simlog_path,
                      const std::string& report_path,
                      const std::string& metrics_config_path, std::string* error);

@@ -37,6 +37,43 @@ double MsSince(const Clock::time_point& t0, const Clock::time_point& t1) {
   return std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
 
+double ScenarioSpanSeconds(const std::vector<double>& timestamps,
+                             const hyw_sim::proto::ScenarioMeta& meta) {
+  if (meta.has_stats() && meta.stats().duration_s() > 0.0) {
+    return meta.stats().duration_s();
+  }
+  if (timestamps.size() >= 2) {
+    return timestamps.back() - timestamps.front();
+  }
+  return 0.0;
+}
+
+double EffectiveSimDurationSeconds(const std::vector<double>& timestamps,
+                                   double max_seconds) {
+  if (timestamps.empty()) {
+    return max_seconds > 0.0 ? max_seconds : 5.0;
+  }
+  double total_seconds = max_seconds;
+  if (total_seconds <= 0.0 && timestamps.size() > 1) {
+    total_seconds = timestamps.back() - timestamps.front();
+  }
+  if (total_seconds <= 0.0) {
+    total_seconds = 5.0;
+  }
+  return total_seconds;
+}
+
+grading_mini::proto::ScenarioContext BuildScenarioContext(
+    const std::vector<double>& timestamps,
+    const hyw_sim::proto::ScenarioMeta& meta, double max_seconds, double dt) {
+  grading_mini::proto::ScenarioContext ctx;
+  const double scenario_duration = ScenarioSpanSeconds(timestamps, meta);
+  ctx.set_scenario_duration_s(scenario_duration);
+  ctx.set_sim_duration_s(EffectiveSimDurationSeconds(timestamps, max_seconds));
+  ctx.set_dt_s(dt);
+  return ctx;
+}
+
 std::string TimestampNow() {
   const auto now = std::chrono::system_clock::now();
   const std::time_t t = std::chrono::system_clock::to_time_t(now);
@@ -422,6 +459,18 @@ int main(int argc, char** argv) {
   cfg.set_max_seconds(args.max_seconds);
   cfg.set_initial_ego_speed_mps(initial_ego_speed_mps);
 
+  const grading_mini::proto::ScenarioContext scenario_context =
+      BuildScenarioContext(dynamic_source->timestamps(), bundle.meta,
+                           cfg.max_seconds(), cfg.dt());
+  const grading_mini::proto::ScenarioContext* scenario_context_ptr =
+      &scenario_context;
+  if (!args.benchmark) {
+    std::cout << "[sim_cpp] scenario_context: sim_duration="
+              << scenario_context.sim_duration_s() << "s scenario_duration="
+              << scenario_context.scenario_duration_s() << "s dt="
+              << scenario_context.dt_s() << "s\n";
+  }
+
   hyw_sim::proto::Track sdc_track;
   grading_mini::proto::SdcRouteContext sdc_route;
   const grading_mini::proto::SdcRouteContext* sdc_route_ptr = nullptr;
@@ -454,7 +503,8 @@ int main(int argc, char** argv) {
     std::error_code mk_ec;
     fs::create_directories(report_path, mk_ec);
     if (!stream_writer.Start(args.grading_bin, report_path, args.metrics_config,
-                             &lane_graph.map(), params, sdc_route_ptr, &err)) {
+                             &lane_graph.map(), params, sdc_route_ptr,
+                             scenario_context_ptr, &err)) {
       std::cerr << "[sim_cpp] failed to start grading stream: " << err << "\n";
       return 3;
     }
@@ -500,7 +550,8 @@ int main(int argc, char** argv) {
   stream_writer.Close();
 
   if (!hyw_sim::WriteSimLogJson(args.output, args.source_tag, records,
-                                lane_graph.map(), params, sdc_route_ptr, &err)) {
+                                lane_graph.map(), params, sdc_route_ptr,
+                                scenario_context_ptr, &err)) {
     std::cerr << "[sim_cpp] failed writing simlog: " << err << "\n";
     return 5;
   }
